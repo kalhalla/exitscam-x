@@ -6,8 +6,10 @@ const db = new PrismaClient();
 
 export async function settlePredictions() {
   const now = new Date();
+
+  // Prisma returns a broad type for JSON fields; give the callback a type so TS doesn't complain.
   const pendings = await db.gameTxn.findMany({ where: { result: 'pending' } });
-  const due = pendings.filter(p any) => p.meta?.window?.end && new Date(p.meta.window.end) <= now);
+  const due = pendings.filter((p: any) => p.meta?.window?.end && new Date(p.meta.window.end) <= now);
   if (due.length === 0) return;
 
   for (const p of due) {
@@ -27,5 +29,6 @@ function decideWinner(): 'pump' | 'dump' {
   if (cfg.features.predictionPriceSource === 'RNG') {
     return Math.random() < 0.5 ? 'pump' : 'dump';
   }
+  // If/when you wire a real price source, branch here.
   return 'pump';
 }
