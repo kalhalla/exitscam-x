@@ -1,12 +1,17 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { handleIncomingTweet } from './x.js';
 import { dailyPayout, weeklyJackpot } from './leaderboard.js';
 
 export const router = Router();
 
-router.get('/health', (_req, res) => res.send({ ok: true }));
+// simple health check: GET /api/health
+router.get('/health', (_req: Request, res: Response) => {
+  res.send({ ok: true });
+});
 
-router.post('/hooks/x', async (req, res) => {
+// simulate an incoming tweet (our internal hook): POST /api/hooks/x
+router.post('/hooks/x', async (req: Request, res: Response) => {
   try {
     await handleIncomingTweet(req.body);
     res.status(204).send();
@@ -16,12 +21,13 @@ router.post('/hooks/x', async (req, res) => {
   }
 });
 
-router.post('/cron/daily-payout', async (_req, res) => {
+// manual cron triggers (useful while testing)
+router.post('/cron/daily-payout', async (_req: Request, res: Response) => {
   await dailyPayout();
   res.status(204).send();
 });
 
-router.post('/cron/weekly-jackpot', async (_req, res) => {
+router.post('/cron/weekly-jackpot', async (_req: Request, res: Response) => {
   await weeklyJackpot();
   res.status(204).send();
 });
