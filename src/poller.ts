@@ -1,4 +1,3 @@
-// src/poller.ts
 import pino from 'pino';
 import { TwitterApi } from 'twitter-api-v2';
 import { cfg } from './config.js';
@@ -6,14 +5,17 @@ import { handleIncomingTweet } from './x.js';
 
 function makeClient() {
   return new TwitterApi({
-    appKey: cfg.x.appKey,
-    appSecret: cfg.x.appSecret,
+    appKey: cfg.x.key,            // << was appKey
+    appSecret: cfg.x.secret,      // << was appSecret
     accessToken: cfg.x.accessToken,
     accessSecret: cfg.x.accessSecret,
   });
 }
 
-// simple in‑memory watermark so we don't re-process old tweets
+// read interval from env to avoid config type mismatch
+const intervalMs =
+  Number(process.env.POLLING_INTERVAL_MS ?? '300000') || 300000;
+
 let sinceId: string | undefined;
 
 export async function startPoller(log: pino.Logger = pino()): Promise<void> {
@@ -23,12 +25,11 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
   }
 
   const client = makeClient();
-  const me = await client.v2.me(); // { data: { id, username } }
+  const me = await client.v2.me();
   const botUserId = me.data.id;
-  const handle = me.data.username;
 
   log.info(
-    { botUserId, handle, intervalMs: cfg.pollingIntervalMs },
+    { botUserId, handle: me.data.username, intervalMs },
     'poller: starting'
   );
 
@@ -42,14 +43,11 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
         'tweet.fields': ['created_at', 'entities'],
       });
 
-      // twitter-api-v2 returns a paginator; tweets are on .data
       const tweets: any[] = (res as any).data ?? [];
       if (tweets.length === 0) return;
 
-      // for author usernames
       const users: any[] = (res as any).includes?.users ?? [];
 
-      // oldest → newest so actions happen in order
       tweets.sort((a, b) => (a.id > b.id ? 1 : -1));
 
       for (const t of tweets) {
@@ -64,7 +62,7 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
           text: t.text ?? '',
           authorHandle,
           authorId,
-          mentions: [cfg.publicBotHandle],
+          mentions: [cfg.botHandle], // << was cfg.publicBotHandle
         });
       }
     } catch (err) {
@@ -72,7 +70,6 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
     }
   };
 
-  // kick off immediately, then on interval
   await runOnce();
-  setInterval(runOnce, cfg.pollingIntervalMs);
+  setInterval(runOnce, intervalMs);
 }
