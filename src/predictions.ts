@@ -7,7 +7,7 @@ const db = new PrismaClient();
 export async function settlePredictions() {
   const now = new Date();
   const pendings = await db.gameTxn.findMany({ where: { result: 'pending' } });
-  const due = pendings.filter(p => p.meta?.window?.end && new Date(p.meta.window.end) <= now);
+  const due = pendings.filter(p any) => p.meta?.window?.end && new Date(p.meta.window.end) <= now);
   if (due.length === 0) return;
 
   for (const p of due) {
