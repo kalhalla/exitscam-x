@@ -19,5 +19,5 @@ export async function trackDailyStake(userId: string, amt: bigint, cap: bigint) 
 
 function dayKey() {
   const d = new Date();
-  return `${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`;
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
 }
