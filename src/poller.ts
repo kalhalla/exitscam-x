@@ -5,16 +5,15 @@ import { handleIncomingTweet } from './x.js';
 
 function makeClient() {
   return new TwitterApi({
-    appKey: cfg.x.key,            // << was appKey
-    appSecret: cfg.x.secret,      // << was appSecret
+    appKey: cfg.x.key,           // config uses key/secret
+    appSecret: cfg.x.secret,
     accessToken: cfg.x.accessToken,
     accessSecret: cfg.x.accessSecret,
   });
 }
 
-// read interval from env to avoid config type mismatch
-const intervalMs =
-  Number(process.env.POLLING_INTERVAL_MS ?? '300000') || 300000;
+// Polling interval from env to avoid config type mismatches.
+const intervalMs = Number(process.env.POLLING_INTERVAL_MS ?? '300000') || 300000;
 
 let sinceId: string | undefined;
 
@@ -28,10 +27,7 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
   const me = await client.v2.me();
   const botUserId = me.data.id;
 
-  log.info(
-    { botUserId, handle: me.data.username, intervalMs },
-    'poller: starting'
-  );
+  log.info({ botUserId, handle: me.data.username, intervalMs }, 'poller: starting');
 
   const runOnce = async () => {
     try {
@@ -43,11 +39,14 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
         'tweet.fields': ['created_at', 'entities'],
       });
 
+      // twitter-api-v2 paginator → tweets live on .data
       const tweets: any[] = (res as any).data ?? [];
       if (tweets.length === 0) return;
 
+      // authors for username lookup
       const users: any[] = (res as any).includes?.users ?? [];
 
+      // oldest → newest so we handle in order
       tweets.sort((a, b) => (a.id > b.id ? 1 : -1));
 
       for (const t of tweets) {
@@ -62,7 +61,7 @@ export async function startPoller(log: pino.Logger = pino()): Promise<void> {
           text: t.text ?? '',
           authorHandle,
           authorId,
-          mentions: [cfg.botHandle], // << was cfg.publicBotHandle
+          mentions: [cfg.botHandle], // config exposes botHandle
         });
       }
     } catch (err) {
