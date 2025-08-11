@@ -1,54 +1,79 @@
+import pino from 'pino';
 import { TwitterApi } from 'twitter-api-v2';
 import { cfg } from './config.js';
 import { handleIncomingTweet } from './x.js';
-import type { IncomingTweet } from './types.js';
 
+// Build a user-context client from env/cfg
+function makeClient() {
+  return new TwitterApi({
+    appKey: cfg.x.appKey,
+    appSecret: cfg.x.appSecret,
+    accessToken: cfg.x.accessToken,
+    accessSecret: cfg.x.accessSecret
+  });
+}
+
+// Keep last processed tweet id in memory (simple + fine for single replica)
 let sinceId: string | undefined;
 
-export async function startPoller() {
-  const client = new TwitterApi({
-    appKey: cfg.x.key,
-    appSecret: cfg.x.secret,
-    accessToken: cfg.x.accessToken,
-    accessSecret: cfg.x.accessSecret,
-  });
-  const ro = client.readOnly;
-  const me = await ro.v2.me();
-  const myId = me.data.id;
+export async function startPoller(log: pino.Logger = pino()): Promise<void> {
+  if (!cfg.features.pollingEnabled) {
+    log.info('poller: disabled via flag');
+    return;
+  }
 
-  async function tick() {
+  const client = makeClient();
+  const me = await client.v2.me(); // { data: { id, username, ... } }
+  const botUserId = me.data.id;
+
+  log.info({ botUserId, handle: me.data.username, intervalMs: cfg.pollingIntervalMs }, 'poller: starting');
+
+  const runOnce = async () => {
     try {
-      const res = await ro.v2.userMentionTimeline(myId, {
+      // Fetch latest mentions since the last processed id
+      const res = await client.v2.userMentionTimeline(botUserId, {
         since_id: sinceId,
-        expansions: ['entities.mentions.username', 'author_id'],
-        'tweet.fields': ['entities', 'author_id', 'in_reply_to_user_id'],
         max_results: 100,
+        expansions: ['author_id'],
+        'user.fields': ['username'],
+        'tweet.fields': ['created_at', 'entities']
       });
 
-      const tweets = res.data || [];
-      if (tweets.length > 0) {
-        sinceId = tweets[0].id; // newest first
-        for (const tw of tweets.reverse()) {
-          const text = tw.text || '';
-          const mentions = (tw.entities?.mentions || []).map((m: any) => m.username);
-          const incoming: IncomingTweet = {
-            id: tw.id,
-            text,
-            authorHandle: 'unknown',
-            authorId: tw.author_id!,
-            inReplyToStatusId: undefined,
-            mentions,
-            isRetweet: text.startsWith('RT '),
-            isQuote: false,
-          };
-          await handleIncomingTweet(incoming);
-        }
+      // twitter-api-v2 returns a paginator; the array is on .data
+      const tweets: any[] = (res as any).data ?? [];
+      if (tweets.length === 0) return;
+
+      // Oldest → newest so processing order is stable
+      tweets.sort((a, b) => (a.id > b.id ? 1 : -1));
+
+      const users: any[] = (res as any).includes?.users ?? [];
+
+      for (const t of tweets) {
+        sinceId = t.id;
+
+        const authorId: string = t.author_id ?? '';
+        const authorHandle: string =
+          users.find((u: any) => u.id === authorId)?.username ?? `u_${authorId}`;
+
+        // Normalize into our internal hook payload shape
+        await handleIncomingTweet({
+          id: t.id,
+          text: t.text ?? '',
+          authorHandle,
+          authorId,
+          mentions: [cfg.publicBotHandle]
+        });
       }
-    } catch (e) {
-      console.error('poller_error', e);
-    } finally {
-      setTimeout(tick, cfg.features.pollingIntervalMs);
+    } catch (err) {
+      log.error({ err }, 'poller: runOnce failed');
     }
+  };
+
+  // Kick off immediately, then on interval
+  await runOnce();
+  setInterval(runOnce, cfg.pollingIntervalMs);
+}
+
   }
 
   tick();
