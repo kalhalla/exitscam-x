@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  handle        String   @unique
+  xUserId       String   @unique
+  walletPubkey  String?  @unique
+  referredById  String?
+  refCode       String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  balances      Balance[]
+  promos        PromoAction[]
+  stats         UserStats?
+  referrals     User[]   @relation("Referrals", fields: [id], references: [referredById])
+}
+
+model Balance {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    BigInt   @default(0) // base units (6dp)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PromoAction {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // mention | hashtag | retweet | quote | referral
+  weight    Int
+  meta      Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model GameTxn {
+  id        String   @id @default(cuid())
+  type      String   // higher | lower | scam | pump | dump | payout | fine | jackpot
+  amount    BigInt
+  actorId   String
+  targetId  String?
+  result    String   // win | lose | pending
+  meta      Json
+  createdAt DateTime @default(now())
+  actor     User     @relation("Actor", fields: [actorId], references: [id])
+  target    User?    @relation("Target", fields: [targetId], references: [id])
+}
+
+model UserStats {
+  userId      String  @id
+  wins        Int     @default(0)
+  losses      Int     @default(0)
+  stolen      BigInt  @default(0)
+  lost        BigInt  @default(0)
+  promoPoints Int     @default(0)
+  user        User    @relation(fields: [userId], references: [id])
+}
+
+model Treasury {
+  id         Int     @id @default(1)
+  scamPool   BigInt  @default(0)
+  lastRug    DateTime?
+}
