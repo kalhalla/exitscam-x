@@ -1,8 +1,15 @@
-import { Redis } from 'ioredis';
+// src/rateLimit.ts
+import * as IORedisNS from 'ioredis';
 import { cfg } from './config.js';
 
+// Robust constructor resolution for ioredis (ESM/CJS, NodeNext safe)
+const RedisCtor: any =
+  (IORedisNS as any).default ??
+  (IORedisNS as any).Redis ??
+  IORedisNS;
+
 const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
-const redis = new Redis(redisUrl);
+const redis = new RedisCtor(redisUrl);
 
 export async function rateLimitGuard(userId: string, cooldownMs: number) {
   const key = `rl:${userId}`;
