@@ -1,6 +1,13 @@
 {
   "name": "exitscam-x",
   "version": "0.1.0",
+  "engines": {
+    "node": ">=20.18.0",
+    "npm": ">=9.0.0"
+  },
+{
+  "name": "exitscam-x",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
 "scripts": {
