@@ -1,11 +1,8 @@
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 import { cfg } from './config.js';
 
-// prefer env var if present (Railway injects REDIS_URL)
 const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
-
-// ioredis default export is the Redis class
-const redis = new IORedis(redisUrl);
+const redis = new Redis(redisUrl);
 
 export async function rateLimitGuard(userId: string, cooldownMs: number) {
   const key = `rl:${userId}`;
