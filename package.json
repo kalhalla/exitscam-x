@@ -11,8 +11,8 @@
   "prisma:generate": "prisma generate",
   "prisma:migrate": "prisma migrate dev",
   "db:push": "prisma db push",
-  "seed": "tsx src/seed.ts",
-}
+  "seed": "tsx src/seed.ts"
+},
   "dependencies": {
     "@prisma/client": "^5.17.0",
     "@solana/spl-token": "^0.4.7",
