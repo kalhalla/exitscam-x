@@ -1,20 +1,26 @@
-// @ts-nocheck
-import { createRequire } from 'node:module';
+// src/rateLimit.ts
 import { cfg } from './config.js';
+import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const Redis = require('ioredis'); // CJS import = constructor at runtime
-
 const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
-const redis = new Redis(redisUrl);
+
+function getRedis(): any {
+  // Load at call time and normalize constructor
+  const mod: any = require('ioredis');
+  const Ctor: any = mod?.default ?? mod?.Redis ?? mod;
+  return new Ctor(redisUrl);
+}
 
 export async function rateLimitGuard(userId: string, cooldownMs: number) {
+  const redis = getRedis();
   const key = `rl:${userId}`;
   const ok = await redis.set(key, '1', 'PX', cooldownMs, 'NX');
   return { ok: ok === 'OK' };
 }
 
 export async function trackDailyStake(userId: string, amt: bigint, cap: bigint) {
+  const redis = getRedis();
   const key = `stake:${userId}:${dayKey()}`;
   const cur = BigInt((await redis.get(key)) || '0');
   if (cur + amt > cap) return false;
