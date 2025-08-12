@@ -5,17 +5,9 @@
   "type": "module",
  "scripts": {
   "dev": "tsx watch src/index.ts",
-
-  // Ensure Prisma client exists before compiling TypeScript
   "build": "prisma generate && tsc -p .",
-
-  // Runtime entry
   "start": "node dist/index.js",
-
-  // Also generate the client whenever deps are installed in Railway
   "postinstall": "prisma generate",
-
-  // Helpers (optional)
   "prisma:generate": "prisma generate",
   "prisma:migrate": "prisma migrate dev",
   "db:push": "prisma db push",
