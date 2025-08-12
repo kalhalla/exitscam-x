@@ -1,15 +1,13 @@
 // src/rateLimit.ts
-import * as IORedisNS from 'ioredis';
+import { createRequire } from 'node:module';
 import { cfg } from './config.js';
 
-// Robust constructor resolution for ioredis (ESM/CJS, NodeNext safe)
-const RedisCtor: any =
-  (IORedisNS as any).default ??
-  (IORedisNS as any).Redis ??
-  IORedisNS;
+const require = createRequire(import.meta.url);
+// Require returns `any`, so TS stops complaining about construct signatures
+const IORedis: any = require('ioredis');
 
 const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
-const redis = new RedisCtor(redisUrl);
+const redis = new IORedis(redisUrl);
 
 export async function rateLimitGuard(userId: string, cooldownMs: number) {
   const key = `rl:${userId}`;
