@@ -1,10 +1,12 @@
-import Redis from 'ioredis';
+// @ts-nocheck
+import { createRequire } from 'node:module';
 import { cfg } from './config.js';
 
-const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
+const require = createRequire(import.meta.url);
+const Redis = require('ioredis'); // CJS import = constructor at runtime
 
-// Cast to any to avoid constructor signature complaints under NodeNext
-const redis = new (Redis as any)(redisUrl);
+const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
+const redis = new Redis(redisUrl);
 
 export async function rateLimitGuard(userId: string, cooldownMs: number) {
   const key = `rl:${userId}`;
