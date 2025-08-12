@@ -1,10 +1,10 @@
 // src/rateLimit.ts
 import { cfg } from './config.js';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
 const redisUrl = process.env.REDIS_URL ?? cfg.redisUrl;
 
-function getRedis(): Redis {
+function getRedis() {
   return new Redis(redisUrl);
 }
 
